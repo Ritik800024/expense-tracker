@@ -1,40 +1,103 @@
-const Expense=require('../models/expense')
-const jwt=require('jsonwebtoken')
+var form=document.getElementById('form-content1')
+form.addEventListener('submit',addexpense)
 
-exports.addexpense=('/addexpense',async (req,res)=>{
-    const expense=req.body.expense
-    const description=req.body.desc
-    const category=req.body.category
-    const date_of_expense=req.body.date_of_expense
 
-    const data=await Expense.create({
+async function addexpense(){
+    event.preventDefault()
+    var expense=event.target.Expense.value
+    var desc=event.target.Desc.value
+    var category=event.target.Cat.value
+    var date_of_expense=event.target.Exdate.value
+
+    const obj={
         expense,
-        description,
+        desc,
         category,
         date_of_expense
-    })
-    res.status(200).json({newexpense:data})
-})
+    }
 
-exports.deleteexpense=('/deleteexpense',async (req,res)=>{
-    const token=req.headers['authorization']
-    console.log(token)
-    const decode=jwt.verify(token,'kjbdbdqwidqd654635465dq4q4d6qw4d65q4wd6qw4d64qw68d4q54d65q4d31qww65d46qww4d45d4123as5d8w2224544xdcfs')
-    await Expense.destroy({
-        where:{
-            exUserId:decode.userid
+    await axios.post('http://localhost:1478/expense/addexpense',{
+        headers:
+        {
+            authorization:localStorage.getItem('token')
+        }
+    },obj)
+    .then((res)=>{
+        showoutput(res.data.newexpense)
+    })
+  }
+
+
+
+function showoutput(obj){
+    var table=document.getElementById('extable')
+    var tr=document.createElement('tr')
+    var td1=document.createElement('td')
+    var td2=document.createElement('td')
+    var td3=document.createElement('td')
+    var td4=document.createElement('td')
+    
+    td1.appendChild(document.createTextNode(obj['expense']))
+    td2.appendChild(document.createTextNode(obj['description']))
+    td3.appendChild(document.createTextNode(obj['category']))
+    td4.appendChild(document.createTextNode(obj['date_of_expense'].split('T')[0]))
+    var deletebtn=document.createElement('button')
+    deletebtn.appendChild(document.createTextNode('delete'))
+    deletebtn.addEventListener('click',(e)=>{
+        deleteexpense(obj['id'])
+        var tr=e.target.parentElement
+        table.removeChild(tr)
+    })
+    tr.appendChild(td1)
+    tr.appendChild(td2)
+    tr.appendChild(td3)
+    tr.appendChild(td4)
+    tr.appendChild(deletebtn)
+    table.appendChild(tr)
+}
+
+window.addEventListener('DOMContentLoaded',async ()=>{
+    await axios.get('http://localhost:1478/expense/getallexpense',{
+        headers:
+        {
+            authorization:localStorage.getItem('token')
         }
     })
+    .then((res)=>{
+    for(let i=0;i<res.data.allexpense.length;i++){
+        showoutput(res.data.allexpense[i])
+    }
+    })
 })
 
-exports.getallexpense=('/getallexpense',async (req,res)=>{
-    const token=req.headers['authorization']
-    console.log(token)
-    const decode=jwt.verify(token,'kjbdbdqwidqd654635465dq4q4d6qw4d65q4wd6qw4d64qw68d4q54d65q4d31qww65d46qww4d45d4123as5d8w2224544xdcfs')
-    const data=await Expense.findAll({
-        where:{
-            exUserId:decode.userid
+async function deleteexpense(id){
+    await axios.delete(`http://localhost:1478/expense/deleteexpense/${id}`,{
+        headers:
+        {
+            authorization:localStorage.getItem('token')
         }
     })
-    res.status(200).json({allexpense:data})
+}
+
+var rzp_btn=document.getElementById('premium')
+rzp_btn.addEventListener('click',async ()=>{
+    const response=await axios.post('http://localhost:1478/purchase/premiummembership',{
+        headers:
+        {
+            authorization: localStorage.getItem('token')
+        }
+    })
+    var options={
+        "key":response.data.key_id,
+        "order_id":response.data.order_id,
+        "handler":async function(response){
+            await axios.post('http://localhost:1478/purchase/updatetransactionsatus',{
+                order_id:options.order_id,
+                payment_id:response.razorpay_payment_id
+            },{headers:{Authorization:token}})
+            
+            alert('You are a premium user now.')
+        }
+    }
+
 })
